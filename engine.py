@@ -16,24 +16,15 @@ class Engine:
     def __init__(self):
         # TODO: Properties ////
         print("[INFO] Bot loading..")
-        self.previousTile = 'start'
-        self.centerBtnCoords = []
-        self.hasGameStart = False
-        self.gameLink = "https://www.jeuxjeuxjeux.fr/jeu/piano-tiles-2.html"
+        self.link = "https://www.wecanda.com/entrepreneur-social/"
+        self.isCaptchaValidate = False
+        self.isVoteTerminated = False
+        self.checkCandidat = False
         # buttons images
-        self.startBtn = pyautogui.locateOnScreen("PianoTilesBot/img/startBtn.png", confidence = 0.8 )
-        self.restartBtn = pyautogui.locateOnScreen("PianoTilesBot/img/restartBtn.png", confidence = 0.8 )
-        self.skipBtn = pyautogui.locateOnScreen("PianoTilesBot/img/skipBtn.png", confidence = 0.8 )
-        self.nothanksBtn = pyautogui.locateOnScreen("PianoTilesBot/img/nothanksBtn.png", confidence = 0.8 )
-        self.playBtn = pyautogui.locateOnScreen("PianoTilesBot/img/playBtn.png", confidence = 0.8 )
-        self.nextBtn = pyautogui.locateOnScreen("PianoTilesBot/img/nextBtn.png", confidence = 0.8 )
-        # tiles positions
-        self.columns = {
-            'Column1' : (360, 340),
-            'Column2' : (410, 340),
-            'Column3' : (460, 340),
-            'Column4' : (510, 340),
-        }
+        self.radio_candidat = pyautogui.locateOnScreen("./dataset/radio_candidat.jpg", confidence = 0.8)
+        self.captcha = pyautogui.locateOnScreen("./dataset/captcha.png", confidence = 0.8)
+        self.validate_captcha = pyautogui.locateOnScreen("./dataset/validate_captcha.png", confidence = 0.8)
+        self.vote_btn = pyautogui.locateOnScreen("./dataset/vote_btn.png", confidence = 0.8)
     # TODO: Method ////
     # Method to click on the screen
     def click(self, position: tuple):
@@ -42,54 +33,57 @@ class Engine:
         Only one parameter is the position to click
         """
         win32api.SetCursorPos(position) # move the cursor to the new position
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0) # call event to click on the screen
+        time.sleep(0.5)
+        # call event to click on the screen
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(0.01) # pause the script every 10ms to click correctly
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0) # call event to release previous click
-    # Method to detect all tiles
-    def detect(self):
-        """
-        This method is used to detect all tiles in a specific position
-        when the pixel attached to a colmun become black, this method
-        call the Click method.
-        No parameter required.
-        """
-        # check if the Red value equals to black
-        # We don't need to check all colors value, red is enough
-        for (name, column) in self.columns.items():
-            if pyautogui.pixel(column[0], column[1])[0] <= 5 and self.previousTile != name:
-                self.click(column)
-                self.previousTile = name
-                print(f"[DONE] {name} clicked !")
-    # Method to begin the game
-    def game(self):
+    # Method to begin the vote
+    def vote(self):
         self.reload()
-        if not self.hasGameStart:
-            # play button
-            if self.isBtnOnScreen(self.playBtn):
+        if not self.isVoteTerminated:
+            # detect candidat radio button and click it
+            if self.isBtnOnScreen(self.radio_candidat):
+                self.checkCandidat = True
                 self.click(self.centerBtnCoords)
-                print("[INFO] Button Play clicked !")
-            # start button
-            if self.isBtnOnScreen(self.startBtn):
+                print("[INFO] Radio Button clicked !")
+            # detect captcha verification and valid it
+            if self.isBtnOnScreen(self.captcha)and self.checkCandidat:
                 self.click(self.centerBtnCoords)
-                self.hasGameStart = True
-                print("[INFO] Button Start clicked !")
-            # skip button
-            if self.isBtnOnScreen(self.skipBtn):
+                # try to validate the Captcha validation test
+                while not self.isBtnOnScreen(self.validate_captcha):
+                    print("[INFO] Captcha validation success !")
+                    time.sleep(1)
+                    if self.isBtnOnScreen(self.vote_btn):
+                        self.click(self.centerBtnCoords)
+                        print("[INFO] Vote Button clicked !")
+                        self.isCaptchaValidate = True
+                        self.isVoteTerminated = True
+                        break
+                    """
+                    if self.isBtnOnScreen(self.validate_captcha):
+                        print("[INFO] Captcha validation success !")
+                        if self.isBtnOnScreen(self.vote_btn):
+                            self.click(self.centerBtnCoords)
+                            print("[INFO] Vote Button clicked !")
+                            self.isCaptchaValidate = True
+                            self.isVoteTerminated = True
+                            break
+                    else:
+                        print("[ERROR] Can't validate the Captcha Test")
+                        self.isCaptchaValidate = False
+                    """
+            if self.isBtnOnScreen(self.vote_btn) and self.isCaptchaValidate:
+                self.isVoteTerminated = True
                 self.click(self.centerBtnCoords)
-                print("[INFO] Button Skip clicked !")
-            # nothanks button
-            if self.isBtnOnScreen(self.nothanksBtn):
-                self.click(self.centerBtnCoords)
-                print("[INFO] Button Nothanks clicked !")
-        # restart button
-        if self.isBtnOnScreen(self.restartBtn):
-            self.click(self.centerBtnCoords)
-            self.hasGameStart = True
-            print("[INFO] Button Restart clicked !")
-        else:
-            self.hasGameStart = False
-        # call method to detect all tiles
-        self.detectTile()
+                print("[INFO] Vote Button clicked !")
+                print("[SUCCESS] Vote terminated with success !")
+            else:
+                print("[ERROR] Captcha validation failed ")
+                self.isVoteTerminated = True
+            # Shutdown the bot when the vote is over
+            if self.isVoteTerminated:
+                print("[END] Bot logout...")
     # Method to know if any button is on screen
     def isBtnOnScreen(self, btn):
         if btn != None:
@@ -98,9 +92,6 @@ class Engine:
         else: return False
     # Reload method
     def reload(self):
-        self.startBtn = pyautogui.locateOnScreen("PianoTilesBot/img/startBtn.png", confidence = 0.8 )
-        self.restartBtn = pyautogui.locateOnScreen("PianoTilesBot/img/restartBtn.png", confidence = 0.8 )
-        self.skipBtn = pyautogui.locateOnScreen("PianoTilesBot/img/skipBtn.png", confidence = 0.8 )
-        self.nothanksBtn = pyautogui.locateOnScreen("PianoTilesBot/img/nothanksBtn.png", confidence = 0.8 )
-        self.playBtn = pyautogui.locateOnScreen("PianoTilesBot/img/playBtn.png", confidence = 0.8 )
-        self.nextBtn = pyautogui.locateOnScreen("PianoTilesBot/img/nextBtn.png", confidence = 0.8 )
+        self.radio_candidat = pyautogui.locateOnScreen("./dataset/radio_candidat.jpg", confidence = 0.8)
+        self.captcha = pyautogui.locateOnScreen("./dataset/captcha.png", confidence = 0.8)
+        self.vote_btn = pyautogui.locateOnScreen("./dataset/vote_btn.png", confidence = 0.8)
